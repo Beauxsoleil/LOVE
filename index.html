@@ -336,9 +336,8 @@
      * 2. Or just tap "Add Photos" on your phone — those are saved locally.
      * ------------------------------------------------------------------ */
     var FOLDER_PHOTOS = [
-      "images/1.jpg", "images/2.jpg", "images/3.jpg", "images/4.jpg",
-      "images/5.jpg", "images/6.jpg", "images/7.jpg", "images/8.jpg",
-      "images/9.jpg", "images/10.jpg", "images/11.jpg", "images/12.jpg"
+      "images/1.jpg", "images/2.jpg", "images/3.jpg"
+      // Add more here as you drop them in: "images/4.jpg", ...
     ];
 
     var STORAGE_KEY = "love_collage_photos_v1";
@@ -353,13 +352,15 @@
     /* ---------- Build the collage ---------- */
     function buildCollage() {
       collage.innerHTML = "";
-      var saved = loadSaved();
-      var sources = saved.slice();          // user photos first
-      FOLDER_PHOTOS.forEach(function (p) { sources.push(p); });
+      var pool = loadSaved().concat(FOLDER_PHOTOS); // all available photos
 
-      // Ensure the grid always looks full even with no photos.
+      // Enough tiles to fill the screen; a bit more when there are lots of photos.
       var minTiles = 18;
-      var count = Math.max(minTiles, sources.length);
+      var count = Math.max(minTiles, pool.length + 4);
+
+      // Spread the photos across the whole collage (repeating if there are few),
+      // never placing the same photo in two adjacent tiles. Hearts fill the gaps.
+      var sequence = spreadPhotos(pool, count);
 
       for (var i = 0; i < count; i++) {
         var tile = document.createElement("div");
@@ -370,7 +371,7 @@
         if (i % 7 === 3) tile.classList.add("tall");
         if (i % 11 === 6) tile.classList.add("wide");
 
-        var src = sources[i];
+        var src = sequence[i];
         if (src) {
           var img = document.createElement("img");
           img.src = src;
@@ -386,6 +387,30 @@
         }
         collage.appendChild(tile);
       }
+    }
+
+    // Returns an array of length `count`: photos (repeated & spread out) with
+    // occasional nulls for heart accents. No photo repeats in adjacent tiles.
+    function spreadPhotos(pool, count) {
+      var out = new Array(count).fill(null);
+      if (!pool.length) return out; // all hearts
+      var order = pool.slice();
+      // light shuffle so it isn't always photo #1 in the corner
+      for (var s = order.length - 1; s > 0; s--) {
+        var j = Math.floor(Math.random() * (s + 1));
+        var tmp = order[s]; order[s] = order[j]; order[j] = tmp;
+      }
+      var k = 0, prev = null;
+      for (var i = 0; i < count; i++) {
+        // Sprinkle a heart accent about every 5th tile for texture.
+        if (i % 5 === 2 && pool.length > 1) { out[i] = null; continue; }
+        var src = order[k % order.length];
+        if (src === prev && order.length > 1) { k++; src = order[k % order.length]; }
+        out[i] = src;
+        prev = src;
+        k++;
+      }
+      return out;
     }
 
     var HEART_EMOJI = ["💗", "💖", "💘", "💝", "❤️", "🌸", "✨", "💞"];
